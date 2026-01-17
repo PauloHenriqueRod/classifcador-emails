@@ -1,13 +1,23 @@
 from flask import Flask, request, jsonify
 import joblib
 import os
+import sys
+
+# Adicionar o diretório de classificadores ao path
+sys.path.insert(0, 'classificadores')
+
+from modelo_respostas import GeradorRespostas
 
 app = Flask(__name__)
 
 # Carregar o modelo treinado
 MODEL_PATH = "classificadores/modelo_classificacao.pkl"
 
-# Respostas sugeridas baseadas na classificação
+# Inicializar gerador de respostas
+gerador_respostas = GeradorRespostas()
+print("Gerador de respostas inicializado")
+
+# Respostas sugeridas baseadas na classificação (fallback)
 RESPOSTAS_SUGERIDAS = {
     "Produtivo": [
         {
@@ -99,14 +109,57 @@ def classificar():
         except:
             confianca = {}
         
-        # Obter respostas sugeridas para a classificação
-        respostas_sugeridas = RESPOSTAS_SUGERIDAS.get(predicao, [])
+        # Gerar respostas automáticas inteligentes
+        try:
+            # Gerar múltiplas opções de resposta avançadas
+            respostas_sugeridas = gerador_respostas.gerar_multiplas_opcoes_avancadas(texto, predicao, num_opcoes=3)
+            
+            # Extrair primeira opção para análises principais
+            resposta_principal = respostas_sugeridas[0] if respostas_sugeridas else {}
+            
+            # Análise de tons
+            sentimento = gerador_respostas.analisador.detectar_tons(texto)
+            
+            # Detectar urgência
+            nivel_urgencia = gerador_respostas._detectar_urgencia_basica(texto)
+            
+            # Detectar tipos de problema
+            tipos_solicitacao = gerador_respostas.analisador.analisar_tipo_problema(texto)
+            
+            # Converter para formato simples para JSON
+            respostas_formato_api = [
+                {
+                    "titulo": r["titulo"],
+                    "texto": r["texto"],
+                    "confianca": float(r["confianca"]),
+                    "recomendacoes": r.get("recomendacoes", []),
+                    "follow_up": r.get("follow_up", {}),
+                    "severidade": r.get("severidade", "média")
+                }
+                for r in respostas_sugeridas
+            ]
+            
+        except Exception as e:
+            print(f"Erro ao gerar respostas: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback para respostas pré-definidas
+            respostas_formato_api = RESPOSTAS_SUGERIDAS.get(predicao, [])
+            sentimento = {"tons": {}}
+            nivel_urgencia = "média"
+            tipos_solicitacao = {"tipo_principal": None}
         
         return jsonify({
             "texto": texto,
             "classificacao": predicao,
             "confianca": confianca,
-            "respostas_sugeridas": respostas_sugeridas,
+            "respostas_sugeridas": respostas_formato_api,
+            "analise": {
+                "sentimento": sentimento,
+                "urgencia": nivel_urgencia,
+                "tipo_principal": tipos_solicitacao.get("tipo_principal"),
+                "tipos_detectados": list(tipos_solicitacao.get("tipos", {}).keys())
+            },
             "sucesso": True
         }), 200
     

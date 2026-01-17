@@ -312,6 +312,7 @@
             cursor: pointer;
             transition: all 0.3s;
             position: relative;
+            max-height: none;
         }
 
         .resposta-card:hover {
@@ -335,9 +336,8 @@
             font-size: 13px;
             line-height: 1.6;
             white-space: pre-wrap;
-            max-height: 100px;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .resposta-card.expanded .resposta-card-texto {
@@ -372,6 +372,80 @@
             padding: 3px 8px;
             border-radius: 3px;
             margin-left: 8px;
+        }
+
+        .analise-secao {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .analise-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .analise-item:last-child {
+            border-bottom: none;
+        }
+
+        .analise-label {
+            color: #666;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .analise-valor {
+            background: #667eea;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .analise-valor.urgencia-alta {
+            background: #f44336;
+        }
+
+        .analise-valor.urgencia-media {
+            background: #ff9800;
+        }
+
+        .analise-valor.urgencia-baixa {
+            background: #4caf50;
+        }
+
+        .analise-valor.sentimento-positivo {
+            background: #4caf50;
+        }
+
+        .analise-valor.sentimento-negativo {
+            background: #f44336;
+        }
+
+        .analise-valor.sentimento-neutro {
+            background: #2196f3;
+        }
+
+        .tags-solicitacao {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag-solicitacao {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -417,9 +491,14 @@
                 <div id="confianca-items"></div>
             </div>
 
+            <div id="analise-container" class="analise-secao" style="display: none;">
+                <div class="label-classificacao" style="padding: 10px 0;">📊 Análise Detalhada</div>
+                <div id="analise-items"></div>
+            </div>
+
             <div id="respostas-sugeridas-container" class="respostas-sugeridas" style="display: none;">
                 <div class="respostas-titulo">
-                    💡 Respostas Sugeridas
+                    💡 Respostas Sugeridas Automaticamente
                 </div>
                 <div id="respostas-items"></div>
             </div>
@@ -475,6 +554,7 @@
             document.getElementById('resultado').classList.remove('sucesso', 'erro');
             document.getElementById('loading').style.display = 'none';
             document.getElementById('respostas-sugeridas-container').style.display = 'none';
+            document.getElementById('analise-container').style.display = 'none';
             document.getElementById('texto').focus();
         }
 
@@ -546,6 +626,63 @@
                         document.getElementById('confianca-container').style.display = 'block';
                     }
 
+                    // Mostrar análise detalhada se disponível
+                    if (data.analise) {
+                        const analiseContainer = document.getElementById('analise-items');
+                        analiseContainer.innerHTML = '';
+
+                        // Mostrar urgência
+                        if (data.analise.urgencia) {
+                            const urgencia = data.analise.urgencia.toLowerCase();
+                            const classeUrgencia = `urgencia-${urgencia}`;
+                            const item = document.createElement('div');
+                            item.className = 'analise-item';
+                            item.innerHTML = `
+                                <span class="analise-label">⏰ Urgência</span>
+                                <span class="analise-valor ${classeUrgencia}">${urgencia.charAt(0).toUpperCase() + urgencia.slice(1)}</span>
+                            `;
+                            analiseContainer.appendChild(item);
+                        }
+
+                        // Mostrar sentimento
+                        if (data.analise.sentimento && data.analise.sentimento.sentimento) {
+                            const sentimento = data.analise.sentimento.sentimento;
+                            const classeSentimento = `sentimento-${sentimento}`;
+                            const emojis = {
+                                'positivo': '😊',
+                                'negativo': '😞',
+                                'neutro': '😐'
+                            };
+                            const item = document.createElement('div');
+                            item.className = 'analise-item';
+                            item.innerHTML = `
+                                <span class="analise-label">💭 Sentimento</span>
+                                <span class="analise-valor ${classeSentimento}">${emojis[sentimento] || ''} ${sentimento.charAt(0).toUpperCase() + sentimento.slice(1)}</span>
+                            `;
+                            analiseContainer.appendChild(item);
+                        }
+
+                        // Mostrar tipos de solicitação
+                        if (data.analise.tipos_solicitacao && data.analise.tipos_solicitacao.length > 0) {
+                            const item = document.createElement('div');
+                            item.className = 'analise-item';
+                            let tagsHtml = '<div class="tags-solicitacao">';
+                            data.analise.tipos_solicitacao.forEach(tipo => {
+                                tagsHtml += `<span class="tag-solicitacao">${tipo.charAt(0).toUpperCase() + tipo.slice(1)}</span>`;
+                            });
+                            tagsHtml += '</div>';
+                            item.innerHTML = `
+                                <span class="analise-label">📋 Tipo de Solicitação</span>
+                                ${tagsHtml}
+                            `;
+                            analiseContainer.appendChild(item);
+                        }
+
+                        if (analiseContainer.innerHTML) {
+                            document.getElementById('analise-container').style.display = 'block';
+                        }
+                    }
+
                     // Mostrar respostas sugeridas se disponível
                     if (data.respostas_sugeridas && data.respostas_sugeridas.length > 0) {
                         const respostasContainer = document.getElementById('respostas-items');
@@ -577,6 +714,7 @@
                         '❌ Erro: ' + (data.erro || 'Erro desconhecido');
                     document.getElementById('erro-resultado').style.display = 'block';
                     document.getElementById('confianca-container').style.display = 'none';
+                    document.getElementById('analise-container').style.display = 'none';
                     document.getElementById('respostas-sugeridas-container').style.display = 'none';
                     document.getElementById('resultado').classList.add('erro');
                 }
@@ -587,6 +725,7 @@
                     '❌ Erro de conexão com a API. Verifique se a API está rodando.';
                 document.getElementById('erro-resultado').style.display = 'block';
                 document.getElementById('confianca-container').style.display = 'none';
+                document.getElementById('analise-container').style.display = 'none';
                 document.getElementById('respostas-sugeridas-container').style.display = 'none';
                 document.getElementById('resultado').classList.add('erro');
                 console.error('Erro:', error);
