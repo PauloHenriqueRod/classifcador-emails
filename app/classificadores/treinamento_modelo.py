@@ -8,7 +8,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 
 
-df = pd.read_csv("emails_processados.csv")
+df = pd.read_csv("../database/emails_processados.csv")
 
 df = df.dropna(subset=["texto_preprocessado", "label"])
 

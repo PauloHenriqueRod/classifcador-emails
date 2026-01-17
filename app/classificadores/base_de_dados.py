@@ -3,21 +3,12 @@ import pandas as pd
 
 from pre_processamento import PreProcessadorEmail
 
-# Configuração dos arquivos
-ARQUIVO_ENTRADA = "emails_produtivoo_improdutivos.csv"
-ARQUIVO_SAIDA = "emails_processados.csv"
+ARQUIVO_ENTRADA = "../database/emails_produtivos_improdutivos.csv"
+ARQUIVO_SAIDA = "../database/emails_processados.csv"
 
 
 def preprocessar_emails_csv(arquivo_entrada: str, arquivo_saida: str) -> None:
-    """
-    Realiza o pré-processamento dos emails do CSV e salva em novo arquivo.
-    
-    Args:
-        arquivo_entrada: Caminho do CSV de entrada com colunas 'texto' e 'label'
-        arquivo_saida: Caminho do CSV de saída com textos pré-processados
-    """
     try:
-        # Carregar o CSV
         print(f"Lendo dataset de: {arquivo_entrada}")
         df = pd.read_csv(arquivo_entrada, encoding='utf-8')
         
