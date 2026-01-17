@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classificador de Emails - Interface de Testes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 120px;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-classificar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-classificar:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-classificar:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-limpar {
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+
+        .btn-limpar:hover {
+            background: #e0e0e0;
+        }
+
+        .resultado {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .resultado.sucesso {
+            display: block;
+            border-left-color: #4caf50;
+        }
+
+        .resultado.erro {
+            display: block;
+            border-left-color: #f44336;
+        }
+
+        .resultado-titulo {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .classificacao-box {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+        }
+
+        .label-classificacao {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .valor-classificacao {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .confianca-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 0;
+        }
+
+        .confianca-label {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .confianca-barra {
+            flex: 1;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            margin: 0 10px;
+            overflow: hidden;
+        }
+
+        .confianca-preenchido {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 5px;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .status-conexao {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #999;
+        }
+
+        .status-dot.ativo {
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .erro-mensagem {
+            color: #f44336;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sucesso-mensagem {
+            color: #4caf50;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .exemplos {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .exemplo-titulo {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .exemplo-item {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .exemplo-item:hover {
+            background: #efefef;
+            transform: translateX(5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 Classificador de Emails</h1>
+        <p class="subtitle">Teste o modelo de classificação em tempo real</p>
+
+        <div class="status-conexao">
+            <div class="status-dot ativo"></div>
+            <span id="status-texto">API conectada</span>
+        </div>
+
+        <div class="form-group">
+            <label for="texto">Texto do Email:</label>
+            <textarea id="texto" placeholder="Digite ou cole o texto do email aqui..."></textarea>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-classificar" onclick="classificarEmail()">
+                🚀 Classificar
+            </button>
+            <button class="btn-limpar" onclick="limpar()">
+                🗑️ Limpar
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Classificando...</p>
+        </div>
+
+        <div class="resultado" id="resultado">
+            <div class="resultado-titulo">Resultado da Classificação</div>
+
+            <div class="classificacao-box">
+                <div class="label-classificacao">Classificação</div>
+                <div class="valor-classificacao" id="valor-classificacao">-</div>
+            </div>
+
+            <div id="confianca-container" style="display: none;">
+                <div class="label-classificacao" style="padding: 10px 0;">Confiança por Classe</div>
+                <div id="confianca-items"></div>
+            </div>
+
+            <div id="erro-resultado" class="erro-mensagem" style="display: none;"></div>
+        </div>
+
+        <div class="exemplos">
+            <div class="exemplo-titulo">📝 Exemplos para testar:</div>
+            <div class="exemplo-item" onclick="usarExemplo('preciso de sua assistência com o prazo do projeto')">
+                "preciso de sua assistência com o prazo do projeto"
+            </div>
+            <div class="exemplo-item" onclick="usarExemplo('parabéns pelo excelente trabalho que você realizou')">
+                "parabéns pelo excelente trabalho que você realizou"
+            </div>
+            <div class="exemplo-item" onclick="usarExemplo('necessitamos de uma resposta urgente sobre este assunto')">
+                "necessitamos de uma resposta urgente sobre este assunto"
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar status da API ao carregar a página
+        window.addEventListener('load', () => {
+            verificarStatusAPI();
+        });
+
+        function verificarStatusAPI() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.modelo_carregado) {
+                        document.getElementById('status-texto').textContent = '✅ API conectada e modelo carregado';
+                    } else {
+                        document.getElementById('status-texto').textContent = '❌ Modelo não carregado. Execute: python treinamento_modelo.py';
+                        document.querySelector('.btn-classificar').disabled = true;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('status-texto').textContent = '❌ API indisponível';
+                    document.querySelector('.btn-classificar').disabled = true;
+                    console.error('Erro ao conectar com API:', error);
+                });
+        }
+
+        function usarExemplo(texto) {
+            document.getElementById('texto').value = texto;
+            document.getElementById('texto').focus();
+        }
+
+        function limpar() {
+            document.getElementById('texto').value = '';
+            document.getElementById('resultado').classList.remove('sucesso', 'erro');
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('texto').focus();
+        }
+
+        function classificarEmail() {
+            const texto = document.getElementById('texto').value.trim();
+
+            if (!texto) {
+                alert('Por favor, digite um texto para classificar');
+                return;
+            }
+
+            // Mostrar loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultado').classList.remove('sucesso', 'erro');
+
+            // Fazer requisição à API
+            fetch('/api/classificar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ texto: texto })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+
+                if (data.sucesso) {
+                    // Mostrar resultado
+                    document.getElementById('valor-classificacao').textContent = 
+                        data.classificacao;
+                    document.getElementById('erro-resultado').style.display = 'none';
+
+                    // Mostrar confiança se disponível
+                    if (Object.keys(data.confianca).length > 0) {
+                        const confiancaContainer = document.getElementById('confianca-items');
+                        confiancaContainer.innerHTML = '';
+
+                        Object.entries(data.confianca).forEach(([classe, confianca]) => {
+                            const percentual = (confianca * 100).toFixed(1);
+                            const item = document.createElement('div');
+                            item.className = 'confianca-item';
+                            item.innerHTML = `
+                                <span class="confianca-label">${classe}</span>
+                                <div class="confianca-barra">
+                                    <div class="confianca-preenchido" style="width: ${percentual}%">
+                                        ${percentual}%
+                                    </div>
+                                </div>
+                            `;
+                            confiancaContainer.appendChild(item);
+                        });
+                        document.getElementById('confianca-container').style.display = 'block';
+                    }
+
+                    document.getElementById('resultado').classList.add('sucesso');
+                } else {
+                    // Mostrar erro
+                    document.getElementById('erro-resultado').textContent = 
+                        '❌ Erro: ' + (data.erro || 'Erro desconhecido');
+                    document.getElementById('erro-resultado').style.display = 'block';
+                    document.getElementById('confianca-container').style.display = 'none';
+                    document.getElementById('resultado').classList.add('erro');
+                }
+            })
+            .catch(error => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('erro-resultado').textContent = 
+                    '❌ Erro de conexão com a API. Verifique se a API está rodando.';
+                document.getElementById('erro-resultado').style.display = 'block';
+                document.getElementById('confianca-container').style.display = 'none';
+                document.getElementById('resultado').classList.add('erro');
+                console.error('Erro:', error);
+            });
+        }
+
+        // Permitir envio com Ctrl+Enter
+        document.getElementById('texto').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                classificarEmail();
+            }
+        });
+    </script>
+</body>
+</html>
