@@ -7,6 +7,38 @@ app = Flask(__name__)
 # Carregar o modelo treinado
 MODEL_PATH = "classificadores/modelo_classificacao.pkl"
 
+# Respostas sugeridas baseadas na classificação
+RESPOSTAS_SUGERIDAS = {
+    "Produtivo": [
+        {
+            "titulo": "Resposta Padrão de Priorização",
+            "texto": "Prezado(a),\n\nRecebemos sua mensagem e já priorizamos seu atendimento. Nossa equipe está analisando a solicitação e retornaremos com uma posição em breve.\n\nEstamos à disposição para quaisquer esclarecimentos adicionais.\n\nAtenciosamente,"
+        },
+        {
+            "titulo": "Confirmação de Recebimento com Prazo",
+            "texto": "Olá,\n\nConfirmamos o recebimento de sua solicitação. Estamos trabalhando para resolver esta questão e você receberá nosso retorno em até [X] dias úteis.\n\nCaso necessite de informações urgentes, não hesite em nos contatar.\n\nCordialmente,"
+        },
+        {
+            "titulo": "Encaminhamento para Equipe Responsável",
+            "texto": "Prezado(a),\n\nSua mensagem foi recebida e encaminhada para a equipe responsável. Eles entrarão em contato em breve para dar continuidade ao seu atendimento.\n\nAgradecemos pela compreensão.\n\nAtenciosamente,"
+        }
+    ],
+    "Improdutivo": [
+        {
+            "titulo": "Resposta Educada de Redirecionamento",
+            "texto": "Prezado(a),\n\nAgradecemos pelo contato. Para melhor atendê-lo, sugerimos que envie sua solicitação através dos canais apropriados ou com mais detalhes sobre o que precisa.\n\nEstamos à disposição para ajudá-lo.\n\nCordialmente,"
+        },
+        {
+            "titulo": "Resposta de Informação Adicional",
+            "texto": "Olá,\n\nRecebemos sua mensagem. Para que possamos auxiliá-lo da melhor forma, precisaríamos de mais informações sobre sua necessidade específica.\n\nPor favor, nos forneça mais detalhes para que possamos direcionar adequadamente seu atendimento.\n\nAtenciosamente,"
+        },
+        {
+            "titulo": "Resposta de Baixa Prioridade",
+            "texto": "Prezado(a),\n\nSua mensagem foi registrada em nosso sistema. Responderemos assim que possível, de acordo com nossa ordem de prioridades.\n\nAgradecemos pela compreensão.\n\nCordialmente,"
+        }
+    ]
+}
+
 if not os.path.exists(MODEL_PATH):
     print(f"Erro: Modelo não encontrado em {MODEL_PATH}")
     print("Execute primeiro: python treinamento_modelo.py")
@@ -67,10 +99,14 @@ def classificar():
         except:
             confianca = {}
         
+        # Obter respostas sugeridas para a classificação
+        respostas_sugeridas = RESPOSTAS_SUGERIDAS.get(predicao, [])
+        
         return jsonify({
             "texto": texto,
             "classificacao": predicao,
             "confianca": confianca,
+            "respostas_sugeridas": respostas_sugeridas,
             "sucesso": True
         }), 200
     

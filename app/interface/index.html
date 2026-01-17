@@ -286,11 +286,98 @@
             background: #efefef;
             transform: translateX(5px);
         }
+
+        .respostas-sugeridas {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        .respostas-titulo {
+            color: #333;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resposta-card {
+            background: #f9f9f9;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .resposta-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .resposta-card-titulo {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .resposta-card-texto {
+            color: #555;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            max-height: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .resposta-card.expanded .resposta-card-texto {
+            max-height: none;
+        }
+
+        .btn-copiar {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copiar:hover {
+            background: #45a049;
+            transform: scale(1.05);
+        }
+
+        .btn-copiar.copiado {
+            background: #666;
+        }
+
+        .tag-resposta {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📧 Classificador de Emails</h1>
+        <h1>Classificador de Emails</h1>
         <p class="subtitle">Teste o modelo de classificação em tempo real</p>
 
         <div class="status-conexao">
@@ -305,10 +392,10 @@
 
         <div class="button-group">
             <button class="btn-classificar" onclick="classificarEmail()">
-                🚀 Classificar
+                Classificar
             </button>
             <button class="btn-limpar" onclick="limpar()">
-                🗑️ Limpar
+                Limpar
             </button>
         </div>
 
@@ -330,11 +417,18 @@
                 <div id="confianca-items"></div>
             </div>
 
+            <div id="respostas-sugeridas-container" class="respostas-sugeridas" style="display: none;">
+                <div class="respostas-titulo">
+                    💡 Respostas Sugeridas
+                </div>
+                <div id="respostas-items"></div>
+            </div>
+
             <div id="erro-resultado" class="erro-mensagem" style="display: none;"></div>
         </div>
 
         <div class="exemplos">
-            <div class="exemplo-titulo">📝 Exemplos para testar:</div>
+            <div class="exemplo-titulo">Exemplos para testar:</div>
             <div class="exemplo-item" onclick="usarExemplo('preciso de sua assistência com o prazo do projeto')">
                 "preciso de sua assistência com o prazo do projeto"
             </div>
@@ -380,7 +474,24 @@
             document.getElementById('texto').value = '';
             document.getElementById('resultado').classList.remove('sucesso', 'erro');
             document.getElementById('loading').style.display = 'none';
+            document.getElementById('respostas-sugeridas-container').style.display = 'none';
             document.getElementById('texto').focus();
+        }
+
+        function copiarResposta(texto, botao) {
+            navigator.clipboard.writeText(texto).then(() => {
+                const textoOriginal = botao.textContent;
+                botao.textContent = '✓ Copiado!';
+                botao.classList.add('copiado');
+                
+                setTimeout(() => {
+                    botao.textContent = textoOriginal;
+                    botao.classList.remove('copiado');
+                }, 2000);
+            }).catch(err => {
+                alert('Erro ao copiar texto');
+                console.error('Erro ao copiar:', err);
+            });
         }
 
         function classificarEmail() {
@@ -435,6 +546,30 @@
                         document.getElementById('confianca-container').style.display = 'block';
                     }
 
+                    // Mostrar respostas sugeridas se disponível
+                    if (data.respostas_sugeridas && data.respostas_sugeridas.length > 0) {
+                        const respostasContainer = document.getElementById('respostas-items');
+                        respostasContainer.innerHTML = '';
+
+                        data.respostas_sugeridas.forEach((resposta, index) => {
+                            const card = document.createElement('div');
+                            card.className = 'resposta-card';
+                            card.innerHTML = `
+                                <div class="resposta-card-titulo">
+                                    ${resposta.titulo}
+                                    <button class="btn-copiar" onclick="copiarResposta(\`${resposta.texto.replace(/`/g, '\\`')}\`, this)">
+                                        📋 Copiar
+                                    </button>
+                                </div>
+                                <div class="resposta-card-texto">${resposta.texto}</div>
+                            `;
+                            respostasContainer.appendChild(card);
+                        });
+                        document.getElementById('respostas-sugeridas-container').style.display = 'block';
+                    } else {
+                        document.getElementById('respostas-sugeridas-container').style.display = 'none';
+                    }
+
                     document.getElementById('resultado').classList.add('sucesso');
                 } else {
                     // Mostrar erro
@@ -442,6 +577,7 @@
                         '❌ Erro: ' + (data.erro || 'Erro desconhecido');
                     document.getElementById('erro-resultado').style.display = 'block';
                     document.getElementById('confianca-container').style.display = 'none';
+                    document.getElementById('respostas-sugeridas-container').style.display = 'none';
                     document.getElementById('resultado').classList.add('erro');
                 }
             })
@@ -451,6 +587,7 @@
                     '❌ Erro de conexão com a API. Verifique se a API está rodando.';
                 document.getElementById('erro-resultado').style.display = 'block';
                 document.getElementById('confianca-container').style.display = 'none';
+                document.getElementById('respostas-sugeridas-container').style.display = 'none';
                 document.getElementById('resultado').classList.add('erro');
                 console.error('Erro:', error);
             });
