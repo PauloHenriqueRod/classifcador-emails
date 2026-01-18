@@ -4,10 +4,11 @@ import spacy
 from spacy.lang.pt.stop_words import STOP_WORDS
 from datetime import datetime
 from collections import defaultdict
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.neighbors import NearestNeighbors
 
 
 class AnalisadorContexto:
-    """Analisa o contexto profundo do email"""
     
     def __init__(self):
         self.problemas_conhecidos = {
@@ -43,7 +44,7 @@ class AnalisadorContexto:
             }
         }
         
-        # Padrões de problemas específicos
+        
         self.padroes_problema = {
             r"(?:ticket|chamado|caso|protocolo)\s*#?(\d+)": "ticket_referencia",
             r"(?:erro|erro code)\s*:?\s*(\d+|[A-Z0-9]+)": "codigo_erro",
@@ -54,7 +55,6 @@ class AnalisadorContexto:
         }
     
     def analisar_tipo_problema(self, texto: str) -> Dict:
-        """Analisa que tipo de problema é"""
         texto_lower = texto.lower()
         
         tipos_encontrados = {}
@@ -87,7 +87,6 @@ class AnalisadorContexto:
         }
     
     def extrair_informacoes_tecnicas(self, texto: str) -> Dict:
-        """Extrai informações técnicas mencionadas"""
         info_tecnica = {
             "ticket_numero": [],
             "codigo_erro": [],
@@ -116,7 +115,6 @@ class AnalisadorContexto:
         return info_tecnica
     
     def detectar_tons(self, texto: str) -> Dict:
-        """Detecta o tom/formalidade do email"""
         texto_lower = texto.lower()
         
         tons = {
@@ -137,7 +135,6 @@ class AnalisadorContexto:
         }
     
     def analisar_contexto_temporal(self, texto: str) -> Dict:
-        """Analisa referências de tempo no email"""
         texto_lower = texto.lower()
         
         contexto_temporal = {
@@ -145,13 +142,13 @@ class AnalisadorContexto:
             "referencias_tempo": []
         }
         
-        # Referências urgentes
+        
         urgentes = re.findall(r'\b(hoje|agora|imediatamente|urgente|pressa|breve|ontem|há \d+ dias?)\b', texto_lower)
         if urgentes:
             contexto_temporal["referencias_tempo"] = urgentes
             contexto_temporal["urgencia_temporal"] = min(1.0, len(urgentes) * 0.3)
         
-        # Verificar se há menção a prazo vencido
+        
         if any(palavra in texto_lower for palavra in ["atrasado", "vencido", "expirou", "passou"]):
             contexto_temporal["urgencia_temporal"] += 0.3
         
@@ -159,9 +156,6 @@ class AnalisadorContexto:
 
 
 class GeradorRespostas:
-    """
-    Gera respostas automáticas inteligentes e contextualizadas
-    """
     
     def __init__(self):
         try:
@@ -172,7 +166,12 @@ class GeradorRespostas:
         
         self.analisador = AnalisadorContexto()
         
-        # Respostas customizadas por tipo de problema
+        self._tfidf = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
+        self._nn = NearestNeighbors(n_neighbors=1, metric="cosine")
+        self._labels_tfidf: List[str] = []
+        self._treinar_sugeridor_tipos()
+        
+        
         self.templates_por_tipo = {
             "acesso": {
                 "alta": "Prezado(a),\n\nSua solicitação de {sistema} foi recebida e está sendo processada com MÁXIMA PRIORIDADE.\nNossa equipe de segurança e TI foi acionada para validar os requisitos necessários.\nVocê receberá a confirmação de acesso em até 1-2 dias úteis.\n\nReferência: {ticket}\n\nAtenciosamente,",
@@ -206,6 +205,31 @@ class GeradorRespostas:
             }
         }
     
+    def _treinar_sugeridor_tipos(self) -> None:
+        corpus = []
+        labels = []
+        for tipo, cfg in self.analisador.problemas_conhecidos.items():
+            texto_base = " ".join(cfg["palavras"] + cfg.get("sistemas", []))
+            corpus.append(texto_base)
+            labels.append(tipo)
+        if not corpus:
+            return
+        X = self._tfidf.fit_transform(corpus)
+        self._nn.fit(X)
+        self._labels_tfidf = labels
+
+    def calculo_similaridade(self, texto: str) -> Tuple[str, float]:
+        if not texto.strip():
+            return "", 0.0
+        try:
+            vec = self._tfidf.transform([texto])
+            dist, idx = self._nn.kneighbors(vec, n_neighbors=1)
+            sim = 1 - float(dist[0][0])
+            label = self._labels_tfidf[int(idx[0][0])] if self._labels_tfidf else ""
+            return label, max(0.0, sim)
+        except Exception:
+            return "", 0.0
+    
     def avaliar_severidade_contextual(self, texto: str, classificacao: str, urgencia_detectada: str) -> Tuple[float, str]:
         """
         Avalia a severidade contextualmente, combinando múltiplos sinais
@@ -213,29 +237,29 @@ class GeradorRespostas:
         analise_problema = self.analisador.analisar_tipo_problema(texto)
         contexto_temporal = self.analisador.analisar_contexto_temporal(texto)
         
-        # Score base
+        
         score = 0
         
-        # Influência da classificação
+        
         if classificacao.lower() == "produtivo":
             score += 0.4
         
-        # Influência da urgência detectada
+        
         if urgencia_detectada == "alta":
             score += 0.4
         elif urgencia_detectada == "média":
             score += 0.2
         
-        # Influência do problema
+        
         if analise_problema["tipo_principal"]:
             score += analise_problema["confianca"] * 0.3
         
-        # Influência do contexto temporal
+       
         score += min(contexto_temporal["urgencia_temporal"] * 0.3, 0.3)
         
         score = min(score, 1.0)
         
-        # Classificar severidade
+        
         if score >= 0.7:
             severidade = "crítica"
         elif score >= 0.5:
@@ -248,32 +272,27 @@ class GeradorRespostas:
         return score, severidade
     
     def gerar_resposta_avancada(self, texto_email: str, classificacao: str) -> Dict:
-        """
-        Gera resposta com análise profunda e múltiplas dimensões
-        """
-        # Análises
         analise_problema = self.analisador.analisar_tipo_problema(texto_email)
         info_tecnica = self.analisador.extrair_informacoes_tecnicas(texto_email)
         tons = self.analisador.detectar_tons(texto_email)
         contexto_temporal = self.analisador.analisar_contexto_temporal(texto_email)
+        tipo_ml, score_ml = self.calculo_similaridade(texto_email)
         
-        # Detectar urgência básica (seu método original)
         nivel_urgencia = self._detectar_urgencia_basica(texto_email)
         
-        # Avaliar severidade contextual
         score_severidade, severidade = self.avaliar_severidade_contextual(
             texto_email, classificacao, nivel_urgencia
         )
         
-        # Mapear severidade para nível
         nivel_resposta = "alta" if severidade in ["crítica", "alta"] else "média" if severidade == "média" else "baixa"
         
-        # Gerar resposta
         tipo_principal = analise_problema["tipo_principal"] or "acesso"
+        if (not analise_problema["tipo_principal"] or analise_problema["confianca"] < 0.3) and score_ml >= 0.2:
+            tipo_principal = tipo_ml or tipo_principal
         resposta_base = self._obter_template(tipo_principal, nivel_resposta)
         
-        # Personalizar
-        resposta = self._personalizar_resposta_avancada(
+  
+        resposta = self._resposta_personalizda(
             resposta_base,
             info_tecnica,
             tipo_principal,
@@ -294,7 +313,6 @@ class GeradorRespostas:
         }
     
     def _detectar_urgencia_basica(self, texto: str) -> str:
-        """Detecta urgência básica (seu método original simplificado)"""
         texto_lower = texto.lower()
         urgencia_alta = sum(1 for p in ["urgente", "crítico", "emergência", "prioridade", "rápido"] if p in texto_lower)
         urgencia_media = sum(1 for p in ["necessário", "importante", "precisamos"] if p in texto_lower)
@@ -307,35 +325,28 @@ class GeradorRespostas:
             return "baixa"
     
     def _obter_template(self, tipo: str, nivel: str) -> str:
-        """Obtém template apropriado"""
         if tipo in self.templates_por_tipo:
             return self.templates_por_tipo[tipo].get(nivel, self.templates_por_tipo[tipo]["baixa"])
         return "Prezado(a),\n\nRecebemos sua mensagem e estamos processando sua solicitação.\n\nAtenciosamente,"
     
-    def _personalizar_resposta_avancada(self, resposta: str, info_tecnica: Dict, tipo: str, severidade: str) -> str:
-        """Personaliza resposta com informações técnicas"""
-        # Ticket
+    def _resposta_personalizda(self, resposta: str, info_tecnica: Dict, tipo: str, severidade: str) -> str:
         if info_tecnica["ticket_numero"]:
             resposta = resposta.replace("{ticket}", f"Ticket #{info_tecnica['ticket_numero'][0]}")
         else:
             resposta = resposta.replace("\nReferência: {ticket}", "")
         
-        # Sistema
         resposta = resposta.replace("{sistema}", tipo.replace("_", " "))
         
-        # Código de erro
         if info_tecnica["codigo_erro"]:
             resposta = resposta.replace("{codigo_erro}", info_tecnica["codigo_erro"][0])
         else:
             resposta = resposta.replace("{codigo_erro}", "identificado")
         
-        # Ambiente
         if info_tecnica["ambiente"]:
             resposta = resposta.replace("{ambiente}", info_tecnica["ambiente"][0])
         else:
             resposta = resposta.replace("Ambiente: {ambiente}\n", "")
         
-        # Prazo
         if severidade == "crítica":
             prazo = "1-2 horas"
         elif severidade == "alta":
@@ -344,16 +355,13 @@ class GeradorRespostas:
             prazo = "1-2 dias úteis"
         resposta = resposta.replace("{prazo}", prazo)
         
-        # Status
         resposta = resposta.replace("{status}", "indisponível")
         
         return resposta
     
     def _gerar_recomendacoes(self, analise_problema: Dict, tons: Dict, contexto_temporal: Dict, classificacao: str) -> List[str]:
-        """Gera recomendações baseadas na análise"""
         recomendacoes = []
         
-        # Baseado no problema
         if analise_problema["tipo_principal"] == "segurança":
             recomendacoes.append("✓ Escalar para equipe de segurança da informação IMEDIATAMENTE")
         
@@ -361,25 +369,21 @@ class GeradorRespostas:
             recomendacoes.append("✓ Verificar status dos sistemas críticos")
             recomendacoes.append("✓ Notificar todas as áreas afetadas")
         
-        # Baseado no tom
         if tons["tons"]["frustrado"] > 2:
             recomendacoes.append("✓ Considerar contato telefônico para melhor relacionamento")
         
         if tons["tons"]["imperativo"] > 1:
             recomendacoes.append("✓ Priorizar este atendimento")
         
-        # Baseado no contexto temporal
         if contexto_temporal["urgencia_temporal"] > 0.6:
             recomendacoes.append("✓ Solicitar aprovação de SLA reduzido")
         
-        # Baseado na classificação
         if classificacao.lower() == "produtivo":
             recomendacoes.append("✓ Manter acompanhamento próximo durante resolução")
         
         return recomendacoes
     
     def _sugerir_follow_up(self, tipo: str, severidade: str, info_tecnica: Dict) -> Dict:
-        """Sugere follow-up apropriado"""
         if severidade == "crítica":
             intervalo = "30 minutos"
         elif severidade == "alta":
@@ -394,7 +398,6 @@ class GeradorRespostas:
         }
     
     def gerar_multiplas_opcoes_avancadas(self, texto_email: str, classificacao: str, num_opcoes: int = 3) -> List[Dict]:
-        """Gera múltiplas opções sofisticadas"""
         resposta_avancada = self.gerar_resposta_avancada(texto_email, classificacao)
         
         opcoes = [
